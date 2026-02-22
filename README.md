@@ -29,7 +29,9 @@ A stock is a hit when:
 
 ## Project Structure
 
-- `/Users/tingzhou/Desktop/n8n-bot/stock_screener/stock_screen.py`: main CLI and screening logic
+- `/Users/tingzhou/Desktop/n8n-bot/stock_screener/stock_screen.py`: CLI entrypoint for screening
+- `/Users/tingzhou/Desktop/n8n-bot/stock_screener/constituent_health_check.py`: CLI entrypoint for constituent health checks
+- `/Users/tingzhou/Desktop/n8n-bot/stock_screener/stock_screener/`: package (screening, providers, constituent loaders, health checks)
 - `/Users/tingzhou/Desktop/n8n-bot/stock_screener/requirements.txt`: Python dependencies
 - `/Users/tingzhou/Desktop/n8n-bot/stock_screener/outputs/`: example output CSV files
 
@@ -66,6 +68,12 @@ Show help:
 
 ```bash
 python3 stock_screen.py --help
+```
+
+Constituent health-check help:
+
+```bash
+python3 constituent_health_check.py --help
 ```
 
 ## Commands and Options
@@ -137,6 +145,34 @@ Run as of a fixed date:
 ```bash
 python3 stock_screen.py --indices SP500 --as-of-date 2026-02-20
 ```
+
+## Constituent Health Check (n8n-friendly)
+
+This command verifies constituent fetches are healthy before running the screener.
+
+```bash
+python3 constituent_health_check.py \
+  --indices SP500 STI HSI \
+  --state-file outputs/constituents_state.json \
+  --max-change-pct 0.10
+```
+
+Behavior:
+- exits `0` when all index checks pass
+- exits `1` when any index fails validation
+- prints JSON to stdout with per-index errors/warnings
+
+Checks include:
+- fetch/parsing success
+- constituent count in expected range
+- ticker field presence
+- abnormal day-over-day change percentage vs saved state
+
+n8n pattern:
+1. Run `constituent_health_check.py` in an `Execute Command` node
+2. Branch on exit code / parsed JSON `ok`
+3. Alert on failure and stop
+4. Run `stock_screen.py` only on success
 
 ## Output Format
 
