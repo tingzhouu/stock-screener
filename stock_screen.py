@@ -117,19 +117,100 @@ class StubProvider(MarketDataProvider):
 # -----------------------------
 
 class YFinanceProvider(MarketDataProvider):
+    def _fetch_html_tables(self, url: str) -> List[pd.DataFrame]:
+        import requests
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=20)
+        resp.raise_for_status()
+        return pd.read_html(StringIO(resp.text))
+
+    def _get_sti_constituents(self) -> List[Constituent]:
+        # Prototype source: Wikipedia. Table format can change, so use column heuristics.
+        # Important: SGX tickers are often alphanumeric (e.g. D05, O39, U11), not just digits.
+        import re
+
+        tables = self._fetch_html_tables("https://en.wikipedia.org/wiki/Straits_Times_Index")
+
+        for df in tables:
+            lower_cols = [str(c).strip().lower() for c in df.columns]
+
+            has_company = any("company" in c for c in lower_cols)
+            has_symbol = any(("symbol" in c) or ("ticker" in c) for c in lower_cols)
+            if not (has_company and has_symbol):
+                continue
+
+            company_col = next(c for c in df.columns if "company" in str(c).strip().lower())
+            symbol_col = next(c for c in df.columns if ("symbol" in str(c).strip().lower()) or ("ticker" in str(c).strip().lower()))
+
+            out: List[Constituent] = []
+            seen: set[str] = set()
+
+            for _, row in df.iterrows():
+                company = str(row[company_col]).strip()
+                raw_symbol = str(row[symbol_col]).strip()
+                if not company or company.lower() == "nan" or not raw_symbol or raw_symbol.lower() == "nan":
+                    continue
+
+                # Wikipedia cells may contain notes/extra text; extract SGX-style code token.
+                # Examples we want: D05, O39, U11, C6L, S68, Z74, etc.
+                candidates = re.findall(r"[A-Z0-9]{2,6}", raw_symbol.upper())
+                candidates = [c for c in candidates if any(ch.isdigit() for ch in c)]
+                if not candidates:
+                    continue
+
+                sgx_code = candidates[0]
+                ticker = f"{sgx_code}.SI"
+
+                if ticker in seen:
+                    continue
+                seen.add(ticker)
+                out.append(Constituent(ticker=ticker, company=company))
+
+            # STI should have ~30 constituents; keep a low threshold for resilience.
+            if len(out) >= 20:
+                return out
+
+        raise ValueError("Could not parse STI constituents table from source")
+
+    def _get_hsi_constituents(self) -> List[Constituent]:
+        # Prototype source: Wikipedia. Table format can change, so use column heuristics.
+        tables = self._fetch_html_tables("https://en.wikipedia.org/wiki/Hang_Seng_Index")
+
+        for df in tables:
+            lower_cols = [str(c).strip().lower() for c in df.columns]
+            has_company = any(("name" in c) or ("company" in c) for c in lower_cols)
+            has_symbol = any(("ticker" in c) or ("code" in c) or ("symbol" in c) for c in lower_cols)
+            if not (has_company and has_symbol):
+                continue
+
+            company_col = next(c for c in df.columns if ("name" in str(c).strip().lower()) or ("company" in str(c).strip().lower()))
+            symbol_col = next(c for c in df.columns if ("ticker" in str(c).strip().lower()) or ("code" in str(c).strip().lower()) or ("symbol" in str(c).strip().lower()))
+
+            out: List[Constituent] = []
+            for _, row in df.iterrows():
+                company = str(row[company_col]).strip()
+                raw_symbol = str(row[symbol_col]).strip()
+                if not company or company.lower() == "nan" or not raw_symbol or raw_symbol.lower() == "nan":
+                    continue
+
+                digits = "".join(ch for ch in raw_symbol if ch.isdigit())
+                if not digits:
+                    continue
+                ticker = f"{digits.zfill(4)}.HK"
+                out.append(Constituent(ticker=ticker, company=company))
+
+            # Sanity check: HSI should have many constituents, not just a few accidental rows
+            if len(out) >= 30:
+                return out
+
+        raise ValueError("Could not parse HSI constituents table from source")
+
     def get_index_constituents(self, index_code: str) -> List[Constituent]:
         if index_code == "SP500":
-            import requests
-
-            url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            }
-
-            resp = requests.get(url, headers=headers, timeout=20)
-            resp.raise_for_status()
-
-            tables = pd.read_html(StringIO(resp.text))
+            tables = self._fetch_html_tables("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
             df = tables[0]
 
             out: List[Constituent] = []
@@ -138,29 +219,30 @@ class YFinanceProvider(MarketDataProvider):
                 company = str(row["Security"]).strip()
                 out.append(Constituent(ticker=ticker, company=company))
             return out
-        
-        # Temporary hardcoded subsets for proof-of-logic.
-        # We'll replace SP500 with full constituents next.
-        samples = {
-            # "SP500": [
-            #     Constituent("TTD", "The Trade Desk"),
-            #     Constituent("AAPL", "Apple"),
-            #     Constituent("TSLA", "Tesla"),
-            #     Constituent("NVDA", "NVIDIA"),
-            #     Constituent("INTC", "Intel"),
-            # ],
-            "STI": [
-                Constituent("D05.SI", "DBS"),
-                Constituent("O39.SI", "OCBC"),
-                Constituent("U11.SI", "UOB"),
-            ],
-            "HSI": [
-                Constituent("0700.HK", "Tencent"),
-                Constituent("9988.HK", "Alibaba"),
-                Constituent("1299.HK", "AIA"),
-            ],
-        }
-        return samples.get(index_code, [])
+
+        if index_code == "STI":
+            try:
+                return self._get_sti_constituents()
+            except Exception as e:
+                print(f"WARN failed to load STI constituents from source: {e}", file=sys.stderr)
+                return [
+                    Constituent("D05.SI", "DBS"),
+                    Constituent("O39.SI", "OCBC"),
+                    Constituent("U11.SI", "UOB"),
+                ]
+
+        if index_code == "HSI":
+            try:
+                return self._get_hsi_constituents()
+            except Exception as e:
+                print(f"WARN failed to load HSI constituents from source: {e}", file=sys.stderr)
+                return [
+                    Constituent("0700.HK", "Tencent"),
+                    Constituent("9988.HK", "Alibaba"),
+                    Constituent("1299.HK", "AIA"),
+                ]
+
+        return []
 
     def get_price_history(
         self,
@@ -461,6 +543,24 @@ def write_hits_csv(path: str, hits: List[HitRow]) -> None:
     df.to_csv(path, index=False)
 
 # -----------------------------
+# Helper: print constituents for debugging
+def print_constituents_debug(provider: MarketDataProvider, indices: List[str], limit: int = 20) -> int:
+    rows = []
+    for idx in indices:
+        try:
+            members = provider.get_index_constituents(idx)
+        except Exception as e:
+            print(f"[constituents] index={idx} ERROR: {e}", file=sys.stderr)
+            continue
+
+        print(f"[constituents] index={idx} count={len(members)}", file=sys.stderr)
+        for m in members[: max(0, limit)]:
+            rows.append({"index": idx, "ticker": m.ticker, "company": m.company})
+
+    print(json.dumps({"constituents": rows}, ensure_ascii=False))
+    return 0
+
+# -----------------------------
 # CLI / main
 # -----------------------------
 
@@ -475,6 +575,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     p.add_argument("--include-skips", action="store_true", help="Include skipped symbols in output")
     p.add_argument("--price-basis", choices=["raw", "adjusted"], default="raw")
     p.add_argument("--output-csv", type=str, default=None, help="Optional path to write hits CSV")
+    p.add_argument("--print-constituents", action="store_true", help="Print parsed constituents and exit")
+    p.add_argument("--print-constituents-limit", type=int, default=20, help="How many constituents to print when using --print-constituents")
     return p.parse_args(argv)
 
 
@@ -492,6 +594,9 @@ def main(argv: List[str]) -> int:
 
     # Replace StubProvider with your real provider implementation
     provider: MarketDataProvider = YFinanceProvider()
+
+    if args.print_constituents:
+        return print_constituents_debug(provider, cfg.indices, limit=args.print_constituents_limit)
 
     all_hits: List[HitRow] = []
     all_skips: List[SkipRow] = []
