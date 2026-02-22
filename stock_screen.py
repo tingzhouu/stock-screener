@@ -351,7 +351,7 @@ def screen_ticker_point_to_point(
     return None, "not_hit"
 
 
-def screen_ticker_point_to_point(
+def screen_ticker_drawdown(
     df: pd.DataFrame,
     as_of: date,
     lookback_months: int,
@@ -454,6 +454,12 @@ def screen_index(
     return hits, skips
 
 
+def write_hits_csv(path: str, hits: List[HitRow]) -> None:
+    import os
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df = pd.DataFrame([asdict(r) for r in hits])
+    df.to_csv(path, index=False)
+
 # -----------------------------
 # CLI / main
 # -----------------------------
@@ -481,6 +487,7 @@ def main(argv: List[str]) -> int:
         mode=args.mode,
         as_of_date=to_date(args.as_of_date),
         min_history_days=args.min_history_days,
+        price_basis=args.price_basis,
     )
 
     # Replace StubProvider with your real provider implementation
@@ -496,6 +503,8 @@ def main(argv: List[str]) -> int:
 
     # Sort biggest drops first
     all_hits.sort(key=lambda r: (r.pct_change if r.pct_change is not None else 999), reverse=False)
+    if args.output_csv:
+        write_hits_csv(args.output_csv, all_hits)
 
     output = {
         "meta": {
@@ -504,6 +513,7 @@ def main(argv: List[str]) -> int:
             "threshold_pct": cfg.threshold_pct,
             "lookback_months": cfg.lookback_months,
             "mode": cfg.mode,
+            "price_basis": cfg.price_basis,
             "hit_count": len(all_hits),
             "skip_count": len(all_skips),
         },
@@ -513,6 +523,12 @@ def main(argv: List[str]) -> int:
     if args.include_skips:
         output["skips"] = [asdict(r) for r in all_skips]
 
+    print(
+        f"[summary] run_date={resolve_as_of_date(cfg.as_of_date).isoformat()} "
+        f"indices={','.join(cfg.indices)} mode={cfg.mode} price_basis={cfg.price_basis} "
+        f"hits={len(all_hits)} skips={len(all_skips)}",
+        file=sys.stderr,
+    )
     print(json.dumps(output, ensure_ascii=False))
     return 0
 
