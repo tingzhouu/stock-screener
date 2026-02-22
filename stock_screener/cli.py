@@ -19,7 +19,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         "--indices",
         nargs="*",
         default=None,
-        help="Index codes, e.g. SP500 STI HSI CAC40 (defaults to all supported indices)",
+        help="Index codes, e.g. SP500 STI HSI CAC40 NIKKEI225 (defaults to all supported indices)",
     )
     p.add_argument("--threshold", type=float, default=-0.30, help="Drop threshold as decimal, e.g. -0.30")
     p.add_argument("--lookback-months", type=int, default=3)
