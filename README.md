@@ -48,6 +48,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+3. Run tests:
+
+```bash
+pytest
+```
+
 ## Usage
 
 Basic form:

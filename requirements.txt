@@ -2,3 +2,4 @@ pandas
 yfinance
 lxml
 requests
+pytest
