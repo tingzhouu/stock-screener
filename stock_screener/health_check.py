@@ -7,6 +7,7 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from stock_screener.constituents.service import get_supported_indices
 from stock_screener.models import Constituent
 from stock_screener.providers.base import MarketDataProvider
 from stock_screener.providers.yfinance_provider import YFinanceProvider
@@ -15,12 +16,14 @@ DEFAULT_COUNT_BOUNDS: Dict[str, tuple[int, int]] = {
     "SP500": (450, 550),
     "STI": (20, 40),
     "HSI": (50, 120),
+    "CAC40": (35, 45),
 }
 
 DEFAULT_SENTINELS: Dict[str, List[str]] = {
     "SP500": ["AAPL", "MSFT"],
     "STI": ["D05.SI", "O39.SI"],
     "HSI": ["0700.HK", "9988.HK"],
+    "CAC40": ["MC.PA", "OR.PA"],
 }
 
 
@@ -156,7 +159,12 @@ def run_constituent_health_check(
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Constituent fetch health check")
-    p.add_argument("--indices", nargs="+", required=True, help="Index codes, e.g. SP500 STI HSI")
+    p.add_argument(
+        "--indices",
+        nargs="*",
+        default=None,
+        help="Index codes, e.g. SP500 STI HSI CAC40 (defaults to all supported indices)",
+    )
     p.add_argument("--state-file", type=str, default="outputs/constituents_state.json")
     p.add_argument("--max-change-pct", type=float, default=0.10)
     return p.parse_args(argv)
@@ -164,8 +172,9 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
 
 def main(argv: List[str]) -> int:
     args = parse_args(argv)
+    indices = args.indices if args.indices else get_supported_indices()
     ok, payload = run_constituent_health_check(
-        indices=args.indices,
+        indices=indices,
         state_file=args.state_file,
         max_change_pct=args.max_change_pct,
     )

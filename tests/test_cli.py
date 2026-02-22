@@ -5,9 +5,9 @@ from datetime import date
 from typing import Dict, List
 
 import pandas as pd
-import pytest
 
 from stock_screener.cli import main, parse_args
+from stock_screener.constituents.service import get_supported_indices
 from stock_screener.models import Constituent
 from stock_screener.providers.base import MarketDataProvider
 
@@ -29,9 +29,28 @@ class FakeProvider(MarketDataProvider):
         }
 
 
-def test_parse_args_requires_indices() -> None:
-    with pytest.raises(SystemExit):
-        parse_args([])
+def test_parse_args_defaults_to_all_supported_indices() -> None:
+    args = parse_args([])
+    assert args.indices is None
+
+
+def test_main_defaults_indices_when_omitted(capsys) -> None:
+    rc = main(
+        [
+            "--as-of-date",
+            "2026-02-20",
+            "--min-history-days",
+            "2",
+            "--include-skips",
+        ],
+        provider=FakeProvider(),
+    )
+    captured = capsys.readouterr()
+
+    assert rc == 0
+    payload = json.loads(captured.out.strip())
+    assert payload["meta"]["indices"] == get_supported_indices()
+    assert payload["meta"]["hit_count"] == len(get_supported_indices())
 
 
 def test_main_outputs_json(capsys: pytest.CaptureFixture[str]) -> None:

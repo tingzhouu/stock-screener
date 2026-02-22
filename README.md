@@ -6,6 +6,7 @@ It currently screens index constituents for:
 - `SP500`
 - `STI`
 - `HSI`
+- `CAC40`
 
 The script pulls:
 - index constituents from Wikipedia tables
@@ -79,8 +80,9 @@ python3 constituent_health_check.py --help
 ## Commands and Options
 
 Required:
-- `--indices INDICES [INDICES ...]`
-  - Index codes to screen (for example: `SP500 STI HSI`)
+- `--indices INDICES [INDICES ...]` (optional)
+  - Index codes to screen (for example: `SP500 STI HSI CAC40`)
+  - If omitted, all supported indices are used.
 
 Optional:
 - `--threshold <float>`
@@ -110,14 +112,14 @@ Optional:
 Screen S&P 500 with defaults:
 
 ```bash
-python3 stock_screen.py --indices SP500
+python3 stock_screen.py
 ```
 
 Run drawdown mode for all supported indices and save CSV:
 
 ```bash
 python3 stock_screen.py \
-  --indices SP500 STI HSI \
+  --indices SP500 STI HSI CAC40 \
   --mode drawdown \
   --threshold -0.30 \
   --lookback-months 3 \
@@ -152,7 +154,7 @@ This command verifies constituent fetches are healthy before running the screene
 
 ```bash
 python3 constituent_health_check.py \
-  --indices SP500 STI HSI \
+  --indices SP500 STI HSI CAC40 \
   --state-file outputs/constituents_state.json \
   --max-change-pct 0.10
 ```
@@ -194,4 +196,4 @@ Notes:
   - Wikipedia (constituents)
   - Yahoo Finance (prices)
 - Constituents are parsed from web tables; if table layout changes, parsing may need updates.
-- If STI/HSI parsing fails, the script falls back to a small hardcoded list for those indices.
+- If STI/HSI/CAC40 parsing fails, the script falls back to a small hardcoded list for those indices.

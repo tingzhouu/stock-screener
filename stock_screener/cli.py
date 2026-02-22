@@ -6,6 +6,7 @@ import sys
 from typing import List, Optional
 
 from stock_screener.io import build_output, write_hits_csv
+from stock_screener.constituents.service import get_supported_indices
 from stock_screener.models import Constituent, HitRow, ScreenConfig, SkipRow
 from stock_screener.providers.base import MarketDataProvider
 from stock_screener.providers.yfinance_provider import YFinanceProvider
@@ -14,7 +15,12 @@ from stock_screener.screener import resolve_as_of_date, screen_index, to_date
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Weekly stock drop screener")
-    p.add_argument("--indices", nargs="+", required=True, help="Index codes, e.g. SP500 STI HSI")
+    p.add_argument(
+        "--indices",
+        nargs="*",
+        default=None,
+        help="Index codes, e.g. SP500 STI HSI CAC40 (defaults to all supported indices)",
+    )
     p.add_argument("--threshold", type=float, default=-0.30, help="Drop threshold as decimal, e.g. -0.30")
     p.add_argument("--lookback-months", type=int, default=3)
     p.add_argument("--mode", choices=["point_to_point", "drawdown"], default="point_to_point")
@@ -52,8 +58,9 @@ def print_constituents_debug(provider: MarketDataProvider, indices: List[str], l
 
 def main(argv: List[str], provider: Optional[MarketDataProvider] = None) -> int:
     args = parse_args(argv)
+    indices = args.indices if args.indices else get_supported_indices()
     cfg = ScreenConfig(
-        indices=args.indices,
+        indices=indices,
         threshold_pct=args.threshold,
         lookback_months=args.lookback_months,
         mode=args.mode,

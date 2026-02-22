@@ -34,10 +34,11 @@ def test_health_check_ok_updates_state(tmp_path: Path) -> None:
             "SP500": _mk_members("S", 500),
             "STI": _mk_members("T", 30),
             "HSI": _mk_members("H", 80),
+            "CAC40": _mk_members("C", 40),
         }
     )
     ok, payload = run_constituent_health_check(
-        indices=["SP500", "STI", "HSI"],
+        indices=["SP500", "STI", "HSI", "CAC40"],
         provider=provider,
         state_file=str(state_file),
         max_change_pct=0.5,

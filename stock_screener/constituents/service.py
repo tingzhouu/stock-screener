@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from typing import List
 
+from stock_screener.constituents.cac40_wikipedia import get_cac40_constituents
 from stock_screener.constituents.hsi_wikipedia import get_hsi_constituents
 from stock_screener.constituents.sp500_wikipedia import get_sp500_constituents
 from stock_screener.constituents.sti_wikipedia import get_sti_constituents
 from stock_screener.models import Constituent
+
+SUPPORTED_INDICES: tuple[str, ...] = ("SP500", "STI", "HSI", "CAC40")
+
+
+def get_supported_indices() -> List[str]:
+    return list(SUPPORTED_INDICES)
 
 
 def get_index_constituents(index_code: str) -> List[Constituent]:
@@ -30,6 +37,16 @@ def get_index_constituents(index_code: str) -> List[Constituent]:
                 Constituent("0700.HK", "Tencent"),
                 Constituent("9988.HK", "Alibaba"),
                 Constituent("1299.HK", "AIA"),
+            ]
+
+    if index_code == "CAC40":
+        try:
+            return get_cac40_constituents()
+        except Exception:
+            return [
+                Constituent("MC.PA", "LVMH"),
+                Constituent("OR.PA", "L'Oreal"),
+                Constituent("SAN.PA", "Sanofi"),
             ]
 
     return []
