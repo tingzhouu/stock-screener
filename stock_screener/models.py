@@ -34,6 +34,7 @@ class HitRow:
     latest_date: Optional[str]
     latest_close: Optional[float]
     pct_change: Optional[float]
+    pe_ratio: Optional[float] = None
     peak_date: Optional[str] = None
     peak_close: Optional[float] = None
 

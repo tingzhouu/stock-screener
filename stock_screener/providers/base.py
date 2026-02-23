@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -26,3 +26,7 @@ class MarketDataProvider:
           columns: ['Close']
         """
         raise NotImplementedError
+
+    def get_pe_ratios(self, tickers: List[str]) -> Dict[str, Optional[float]]:
+        """Return mapping ticker -> PE ratio when available."""
+        return {t: None for t in tickers}

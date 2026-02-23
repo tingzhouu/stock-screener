@@ -18,6 +18,16 @@ def write_hits_csv(path: str, hits: List[HitRow]) -> None:
 
 
 def build_output(cfg: ScreenConfig, hits: List[HitRow], skips: List[SkipRow], include_skips: bool) -> Dict:
+    hit_rows = []
+    for hit in hits:
+        row = asdict(hit)
+        pct_change = row.get("pct_change")
+        pe_ratio = row.get("pe_ratio")
+        row["pct_change_percent"] = round(pct_change * 100.0, 2) if pct_change is not None else None
+        row["pct_change_display"] = f"{pct_change * 100.0:.2f}%" if pct_change is not None else None
+        row["pe_ratio_2dp"] = f"{pe_ratio:.2f}" if pe_ratio is not None else None
+        hit_rows.append(row)
+
     output: Dict = {
         "meta": {
             "run_date": resolve_as_of_date(cfg.as_of_date).isoformat(),
@@ -29,7 +39,7 @@ def build_output(cfg: ScreenConfig, hits: List[HitRow], skips: List[SkipRow], in
             "hit_count": len(hits),
             "skip_count": len(skips),
         },
-        "hits": [asdict(r) for r in hits],
+        "hits": hit_rows,
     }
     if include_skips:
         output["skips"] = [asdict(r) for r in skips]

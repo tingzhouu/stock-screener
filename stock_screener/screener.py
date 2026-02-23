@@ -179,6 +179,7 @@ def screen_index(
     tickers = [m.ticker for m in members]
     company_map = {m.ticker: m.company for m in members}
     price_map: Dict[str, pd.DataFrame] = provider.get_price_history(tickers, start_date, end_date)
+    pe_ratio_map = provider.get_pe_ratios(tickers)
 
     hits: List[HitRow] = []
     skips: List[SkipRow] = []
@@ -214,6 +215,7 @@ def screen_index(
             hit.index = index_code
             hit.ticker = ticker
             hit.company = company_map.get(ticker)
+            hit.pe_ratio = pe_ratio_map.get(ticker)
             hits.append(hit)
         elif status and status != "not_hit":
             skips.append(SkipRow(as_of.isoformat(), index_code, ticker, company_map.get(ticker), status))

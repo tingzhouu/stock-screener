@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import pandas as pd
 
@@ -71,4 +71,17 @@ class YFinanceProvider(MarketDataProvider):
             except Exception:
                 result[t] = pd.DataFrame(columns=["Close"])
 
+        return result
+
+    def get_pe_ratios(self, tickers: List[str]) -> Dict[str, Optional[float]]:
+        import yfinance as yf
+
+        result: Dict[str, Optional[float]] = {t: None for t in tickers}
+        for ticker in tickers:
+            try:
+                info = yf.Ticker(ticker).info or {}
+                pe = info.get("trailingPE")
+                result[ticker] = float(pe) if pe is not None else None
+            except Exception:
+                result[ticker] = None
         return result
