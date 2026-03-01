@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from datetime import date
+import math
+import os
+import time
 from typing import Dict, List, Optional
 
 import pandas as pd
@@ -11,6 +14,42 @@ from stock_screener.providers.base import MarketDataProvider
 
 
 class YFinanceProvider(MarketDataProvider):
+    @staticmethod
+    def _to_float(value: object) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            num = float(value)
+        except (TypeError, ValueError):
+            return None
+        return num if math.isfinite(num) else None
+
+    @classmethod
+    def _extract_pe_ratio(cls, ticker_obj: object) -> Optional[float]:
+        info = getattr(ticker_obj, "info", None) or {}
+
+        trailing_pe = cls._to_float(info.get("trailingPE"))
+        if trailing_pe is not None:
+            return trailing_pe
+
+        trailing_eps = cls._to_float(info.get("trailingEps"))
+        if trailing_eps not in (None, 0.0):
+            for key in ("regularMarketPrice", "currentPrice", "previousClose"):
+                market_price = cls._to_float(info.get(key))
+                if market_price is not None:
+                    return market_price / trailing_eps
+
+            try:
+                fast_info = getattr(ticker_obj, "fast_info", None) or {}
+            except Exception:
+                fast_info = {}
+            for key in ("last_price", "regular_market_price", "previous_close"):
+                market_price = cls._to_float(fast_info.get(key))
+                if market_price is not None:
+                    return market_price / trailing_eps
+
+        return cls._to_float(info.get("forwardPE"))
+
     def get_index_constituents(self, index_code: str) -> List[Constituent]:
         return get_index_constituents(index_code)
 
@@ -76,12 +115,16 @@ class YFinanceProvider(MarketDataProvider):
     def get_pe_ratios(self, tickers: List[str]) -> Dict[str, Optional[float]]:
         import yfinance as yf
 
+        delay_seconds = self._to_float(os.getenv("YF_PE_CALL_DELAY_SECONDS"))
+        if delay_seconds is None or delay_seconds < 0:
+            delay_seconds = 0.1
+
         result: Dict[str, Optional[float]] = {t: None for t in tickers}
-        for ticker in tickers:
+        for idx, ticker in enumerate(tickers):
             try:
-                info = yf.Ticker(ticker).info or {}
-                pe = info.get("trailingPE")
-                result[ticker] = float(pe) if pe is not None else None
+                result[ticker] = self._extract_pe_ratio(yf.Ticker(ticker))
             except Exception:
                 result[ticker] = None
+            if delay_seconds > 0 and idx < len(tickers) - 1:
+                time.sleep(delay_seconds)
         return result
