@@ -34,6 +34,16 @@ def test_get_index_constituents_nikkei225_raises_on_error(monkeypatch) -> None:
         service.get_index_constituents("NIKKEI225")
 
 
+def test_get_index_constituents_kospi200_raises_on_error(monkeypatch) -> None:
+    def _boom() -> list[Constituent]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(service, "get_kospi200_constituents", _boom)
+    with pytest.raises(RuntimeError, match="boom"):
+        service.get_index_constituents("KOSPI200")
+
+
 def test_get_supported_indices_includes_nikkei225() -> None:
     supported = service.get_supported_indices()
     assert "NIKKEI225" in supported
+    assert "KOSPI200" in supported

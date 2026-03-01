@@ -8,6 +8,7 @@ It currently screens index constituents for:
 - `HSI`
 - `CAC40`
 - `NIKKEI225`
+- `KOSPI200`
 
 The script pulls:
 - index constituents from Wikipedia tables
@@ -82,7 +83,7 @@ python3 constituent_health_check.py --help
 
 Required:
 - `--indices INDICES [INDICES ...]` (optional)
-  - Index codes to screen (for example: `SP500 STI HSI CAC40 NIKKEI225`)
+  - Index codes to screen (for example: `SP500 STI HSI CAC40 NIKKEI225 KOSPI200`)
   - If omitted, all supported indices are used.
 
 Optional:
@@ -120,7 +121,7 @@ Run drawdown mode for all supported indices and save CSV:
 
 ```bash
 python3 stock_screen.py \
-  --indices SP500 STI HSI CAC40 NIKKEI225 \
+  --indices SP500 STI HSI CAC40 NIKKEI225 KOSPI200 \
   --mode drawdown \
   --threshold -0.30 \
   --lookback-months 3 \
@@ -155,7 +156,7 @@ This command verifies constituent fetches are healthy before running the screene
 
 ```bash
 python3 constituent_health_check.py \
-  --indices SP500 STI HSI CAC40 NIKKEI225 \
+  --indices SP500 STI HSI CAC40 NIKKEI225 KOSPI200 \
   --state-file outputs/constituents_state.json \
   --max-change-pct 0.10
 ```
@@ -217,5 +218,7 @@ Notes:
   - Yahoo Finance (prices)
 - Constituents are parsed from web tables; if table layout changes, parsing may need updates.
 - Japan coverage uses `NIKKEI225` constituents and normalizes tickers to Yahoo Tokyo format (`####.T`).
+- Korea coverage uses `KOSPI200` constituents and normalizes tickers to Yahoo Korea format (`######.KS`).
 - `NIKKEI225` intentionally has no silent fallback list; parser/fetch errors surface explicitly.
+- `KOSPI200` intentionally has no silent fallback list; parser/fetch errors surface explicitly.
 - If STI/HSI/CAC40 parsing fails, the script falls back to a small hardcoded list for those indices.

@@ -18,6 +18,7 @@ DEFAULT_COUNT_BOUNDS: Dict[str, tuple[int, int]] = {
     "HSI": (50, 120),
     "CAC40": (35, 45),
     "NIKKEI225": (200, 250),
+    "KOSPI200": (170, 230),
 }
 
 DEFAULT_SENTINELS: Dict[str, List[str]] = {
@@ -26,6 +27,7 @@ DEFAULT_SENTINELS: Dict[str, List[str]] = {
     "HSI": ["0700.HK", "9988.HK"],
     "CAC40": ["MC.PA", "OR.PA"],
     "NIKKEI225": ["7203.T", "6758.T"],
+    "KOSPI200": ["005930.KS", "000660.KS"],
 }
 
 
@@ -165,7 +167,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         "--indices",
         nargs="*",
         default=None,
-        help="Index codes, e.g. SP500 STI HSI CAC40 NIKKEI225 (defaults to all supported indices)",
+        help="Index codes, e.g. SP500 STI HSI CAC40 NIKKEI225 KOSPI200 (defaults to all supported indices)",
     )
     p.add_argument("--state-file", type=str, default="outputs/constituents_state.json")
     p.add_argument("--max-change-pct", type=float, default=0.10)

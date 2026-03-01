@@ -4,12 +4,13 @@ from typing import List
 
 from stock_screener.constituents.cac40_wikipedia import get_cac40_constituents
 from stock_screener.constituents.hsi_wikipedia import get_hsi_constituents
+from stock_screener.constituents.kospi200_wikipedia import get_kospi200_constituents
 from stock_screener.constituents.nikkei225_wikipedia import get_nikkei225_constituents
 from stock_screener.constituents.sp500_wikipedia import get_sp500_constituents
 from stock_screener.constituents.sti_wikipedia import get_sti_constituents
 from stock_screener.models import Constituent
 
-SUPPORTED_INDICES: tuple[str, ...] = ("SP500", "STI", "HSI", "CAC40", "NIKKEI225")
+SUPPORTED_INDICES: tuple[str, ...] = ("SP500", "STI", "HSI", "CAC40", "NIKKEI225", "KOSPI200")
 
 
 def get_supported_indices() -> List[str]:
@@ -52,5 +53,8 @@ def get_index_constituents(index_code: str) -> List[Constituent]:
 
     if index_code == "NIKKEI225":
         return get_nikkei225_constituents()
+
+    if index_code == "KOSPI200":
+        return get_kospi200_constituents()
 
     raise ValueError(f"Unsupported index: {index_code}")
