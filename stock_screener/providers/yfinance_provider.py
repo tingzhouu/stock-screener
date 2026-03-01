@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 import math
 import os
+import sys
 import time
 from typing import Dict, List, Optional
 
@@ -25,30 +26,18 @@ class YFinanceProvider(MarketDataProvider):
         return num if math.isfinite(num) else None
 
     @classmethod
-    def _extract_pe_ratio(cls, ticker_obj: object) -> Optional[float]:
+    def _extract_pe_ratio_details(cls, ticker_obj: object) -> tuple[Optional[float], str]:
         info = getattr(ticker_obj, "info", None) or {}
 
         trailing_pe = cls._to_float(info.get("trailingPE"))
         if trailing_pe is not None:
-            return trailing_pe
+            return trailing_pe, "info.trailingPE"
+        return None, "missing"
 
-        trailing_eps = cls._to_float(info.get("trailingEps"))
-        if trailing_eps not in (None, 0.0):
-            for key in ("regularMarketPrice", "currentPrice", "previousClose"):
-                market_price = cls._to_float(info.get(key))
-                if market_price is not None:
-                    return market_price / trailing_eps
-
-            try:
-                fast_info = getattr(ticker_obj, "fast_info", None) or {}
-            except Exception:
-                fast_info = {}
-            for key in ("last_price", "regular_market_price", "previous_close"):
-                market_price = cls._to_float(fast_info.get(key))
-                if market_price is not None:
-                    return market_price / trailing_eps
-
-        return cls._to_float(info.get("forwardPE"))
+    @classmethod
+    def _extract_pe_ratio(cls, ticker_obj: object) -> Optional[float]:
+        pe, _ = cls._extract_pe_ratio_details(ticker_obj)
+        return pe
 
     def get_index_constituents(self, index_code: str) -> List[Constituent]:
         return get_index_constituents(index_code)
@@ -118,13 +107,20 @@ class YFinanceProvider(MarketDataProvider):
         delay_seconds = self._to_float(os.getenv("YF_PE_CALL_DELAY_SECONDS"))
         if delay_seconds is None or delay_seconds < 0:
             delay_seconds = 0.1
+        debug_enabled = os.getenv("YF_PE_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
 
         result: Dict[str, Optional[float]] = {t: None for t in tickers}
         for idx, ticker in enumerate(tickers):
             try:
-                result[ticker] = self._extract_pe_ratio(yf.Ticker(ticker))
-            except Exception:
+                ticker_obj = yf.Ticker(ticker)
+                pe, source = self._extract_pe_ratio_details(ticker_obj)
+                result[ticker] = pe
+                if debug_enabled:
+                    print(f"[pe-debug] ticker={ticker} pe={pe} source={source}", file=sys.stderr)
+            except Exception as e:
                 result[ticker] = None
+                if debug_enabled:
+                    print(f"[pe-debug] ticker={ticker} pe=None source=exception error={e}", file=sys.stderr)
             if delay_seconds > 0 and idx < len(tickers) - 1:
                 time.sleep(delay_seconds)
         return result

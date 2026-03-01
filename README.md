@@ -177,6 +177,25 @@ n8n pattern:
 3. Alert on failure and stop
 4. Run `stock_screen.py` only on success
 
+## Ticker PE Debug
+
+Use this helper to inspect Yahoo Finance PE fields for one ticker:
+
+```bash
+python3 debug_ticker_pe.py --ticker 4704.T
+python3 debug_ticker_pe.py --ticker STLAP.PA
+```
+
+Show full raw payloads (`info` and `fast_info`):
+
+```bash
+python3 debug_ticker_pe.py --ticker STLAP.PA --show-full
+```
+
+Notes:
+- `resolved_pe_ratio` follows the screener provider logic.
+- PE is sourced from `info.trailingPE` only; if unavailable, `resolved_pe_ratio` is `null`.
+
 ## Output Format
 
 The script prints JSON to stdout with:
